@@ -1,7 +1,3 @@
-#include <SPI.h>
-
-#define SLAVE_ADDR 0x08  // I2C adres van slave
-
 // Pin definitie
 const int clockPin = 2;
 const int DTPin = 3;
@@ -50,7 +46,6 @@ uint8_t encodeDelta(int delta, bool times10, bool times100) {
 
 void setup() {
   Serial.begin(9600);
-  Wire.begin();
 
   pinMode(clockPin, INPUT);
   pinMode(DTPin, INPUT);
@@ -67,29 +62,23 @@ void loop() {
   int feedSpeed = map(rawValue, 0, 1023, 0, 50);
 
   // Encoderpositie veilig uitlezen
+  noInterrupts();
   int rawDelta = readDelta;
-  readDelta = 0;;
+  readDelta = 0;
+  interrupts();
 
   // Als er iets verandert wordt nieuwe data gestuurd
   if(rawDelta != 0 || feedSpeed != lastFeedSpeed){
     uint8_t encodedDelta = encodeDelta(rawDelta, digitalRead(times10Pin), digitalRead(times100Pin));
     lastFeedSpeed = feedSpeed;
 
-    Wire.beginTransmission(SLAVE_ADDR);
-    Wire.write((encodedDelta));         // Delta encoder encoded
-    Wire.write((uint8_t)feedSpeed);      // Feed snelheid   0-255
-    int result = Wire.endTransmission(); // 0 = OK, >0 = fout
+    Serial.write(encodedDelta);
+    Serial.write(feedSpeed);
 
-    if (result == 0) {
-      Serial.print("I2C OK | ");
-      Serial.print("Jog delta (raw): ");
-      Serial.print(rawDelta);
-      Serial.print(" | Feed speed: ");
-      Serial.println(feedSpeed);
-    } else {
-      Serial.print("I2C ERROR: ");
-      Serial.println(result);
-    }
+    Serial.print("Jog delta (raw): ");
+    Serial.print(rawDelta);
+    Serial.print(" | Feed speed: ");
+    Serial.println(feedSpeed);    
   } 
 
   // Debounced knopcontrole

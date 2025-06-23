@@ -1,52 +1,42 @@
-#include <SPI.h>
-
-volatile int jogCommandDelta = 0;
-volatile uint8_t feedSpeed = 0;
-
-int lastFeedSpeed = 0;
 int jogPosition = 0;
+int lastFeedSpeed = -1;
+uint8_t feedSpeed = 0;
 
 void setup() {
-  Serial.begin(9600);
-  Wire.begin(0x08);  // I²C slave adres
-  Wire.onReceive(receiveData);
+  Serial.begin(9600); // Ontvanger snelheid moet exact gelijk zijn
 }
 
 void loop() {
-  // Enkel printen als er iets veranderd is
-  noInterrupts();
-  int delta = jogCommandDelta;
-  jogCommandDelta = 0;
-  interrupts();
+  static int state = 0;
+  static uint8_t buffer[2];
 
-  if (delta != 0 || feedSpeed != lastFeedSpeed) {
-    Serial.print("Ontvangen jog pos: ");
-    Serial.print(jogPosition);
-    Serial.print(" | Feed speed: ");
-    Serial.println(feedSpeed);
+  if (Serial.available()) {
+    buffer[state++] = Serial.read();
+    if (state == 2) {
+      state = 0;
 
-    lastFeedSpeed = feedSpeed;
-  }
-  delay(10); // CPU ontlasten
-}
+      uint8_t encoded = buffer[0];
+      feedSpeed = buffer[1];
 
-void receiveData(int byteCount) {
-  if (byteCount >= 2) {
-    int encodedDelta = Wire.read();
-    feedSpeed = Wire.read();
+      bool neg = encoded & 0b10000000;
+      uint8_t scaleBits = (encoded >> 5) & 0b11;
+      uint8_t magnitude = encoded & 0b00011111;
 
-    // Decodeer de geëncodeerde delta
-    bool neg = encodedDelta & 0b10000000;
-    uint8_t factorBits = (encodedDelta >> 5) & 0b11;
-    uint8_t magnitude = encodedDelta & 0b00011111;
+      int factor = 1;
+      if (scaleBits == 0b01) factor = 10;
+      else if (scaleBits == 0b10) factor = 100;
 
-    int factor = 1;
-    if (factorBits == 0b01) factor = 10;
-    else if (factorBits == 0b10) factor = 100;
+      int delta = magnitude * factor;
+      if (neg) delta = -delta;
 
-    int delta = magnitude * factor;
-    if (neg) delta = -delta;
+      jogPosition += delta;
 
-    jogPosition += delta;
+      Serial.print("Jog pos: ");
+      Serial.print(jogPosition);
+      Serial.print(" | Feed: ");
+      Serial.println(feedSpeed);
+
+      lastFeedSpeed = feedSpeed;
+    }
   }
 }
