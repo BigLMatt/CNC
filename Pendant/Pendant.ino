@@ -46,6 +46,7 @@ uint8_t encodeDelta(int delta, bool times10, bool times100) {
 
 void setup() {
   Serial.begin(9600);
+  Serial1.begin(115200);   // Moet matchen met ontvanger
 
   pinMode(clockPin, INPUT);
   pinMode(DTPin, INPUT);
@@ -72,8 +73,8 @@ void loop() {
     uint8_t encodedDelta = encodeDelta(rawDelta, digitalRead(times10Pin), digitalRead(times100Pin));
     lastFeedSpeed = feedSpeed;
 
-    Serial.write(encodedDelta);
-    Serial.write(feedSpeed);
+    Serial1.write(encodedDelta);
+    Serial1.write(feedSpeed);
 
     Serial.print("Jog delta (raw): ");
     Serial.print(rawDelta);

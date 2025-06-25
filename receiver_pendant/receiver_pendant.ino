@@ -3,7 +3,7 @@ int lastFeedSpeed = -1;
 uint8_t feedSpeed = 0;
 
 void setup() {
-  Serial.begin(9600); // Ontvanger snelheid moet exact gelijk zijn
+  Serial.begin(115200);  // Moet matchen met transmitter
 }
 
 void loop() {
