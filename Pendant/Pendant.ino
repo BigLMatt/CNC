@@ -1,5 +1,8 @@
-const int clockPin = 2;
-const int DTPin = 3;
+/*  Encoder readout code based on code found here https://github.com/mo-thunderz/RotaryEncoder
+*/
+
+const int ENC_A = 2;
+const int ENC_B = 3;
 const int feedFWDPin = 5;
 const int feedREVPin = 6;
 const int times10Pin = 7;
@@ -45,24 +48,35 @@ uint8_t encodeDelta(int delta, bool times10, bool times100, bool Yaxis, bool Zax
   return encoded;
 }
 
-// Encoder interrupt handler
-void encoderISR() {
-  int stateA = digitalRead(clockPin);
-  int stateB = digitalRead(DTPin);
+void encoderReadout() {
+  static uint8_t old_AB = 3;  // Initial lookup table index
+  static int8_t encVal = 0;   // Encoder value
+  static const int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};  // Lookup table
 
-  if (stateB != stateA) {
-    readDelta += 1;
-  } else {
-    readDelta -= 1;
+  old_AB <<= 2;  // Shift left twice, remembering previous state
+
+  if (digitalRead(ENC_A)) old_AB |= 0x02; // Add current state of pin A (as MSB)
+  if (digitalRead(ENC_B)) old_AB |= 0x01; // Add current state of pin B (as LSB)
+
+  encVal += enc_states[(old_AB & 0x0f)];
+
+  // Update counter
+  if(encVal > 1){     // Could be 3 depending on construction of encoder
+    readDelta++;   // Update counter
+    encVal = 0;
   }
+  else if(encVal < -1){   // Could be -3 depending on construction of encoder
+    readDelta--;     // Update counter
+    encVal = 0;
+  }  
 }
 
 void setup() {
   Serial.begin(115200);   // Best to match with serial1 otherwise speed impact
   Serial1.begin(115200);   // Needs to match receiver
 
-  pinMode(clockPin, INPUT);
-  pinMode(DTPin, INPUT);
+  pinMode(ENC_A, INPUT_PULLUP);
+  pinMode(ENC_B, INPUT_PULLUP);
   pinMode(feedFWDPin, INPUT_PULLUP);
   pinMode(feedREVPin, INPUT_PULLUP);
   pinMode(times10Pin, INPUT_PULLUP);
@@ -70,7 +84,8 @@ void setup() {
   pinMode(YaxisEnablePin, INPUT_PULLUP);
   pinMode(ZaxisEnablePin, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(clockPin), encoderISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENC_A), encoderReadout, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENC_B), encoderReadout, CHANGE);
 }
 
 void loop() {
