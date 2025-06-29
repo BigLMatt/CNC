@@ -12,9 +12,13 @@ const int ZaxisEnablePin = 10;
 const int feedSpeedPot = A0;
 
 volatile int readDelta = 0;
-int lastFeedSpeed = -1;
-bool lastButtonState = HIGH;
+volatile uint8_t old_AB = 0;
+int sumFeedSpeed = 0;
+int feedSpeed = 0;
+int speedAmount = 0;
 
+unsigned long lastFeedTime = 0;
+const unsigned long feedInterval = 100;
 
 // Encode to save space in transmission
 uint8_t encodeDelta(int delta, bool times10, bool times100, bool Yaxis, bool Zaxis) {
@@ -48,8 +52,22 @@ uint8_t encodeDelta(int delta, bool times10, bool times100, bool Yaxis, bool Zax
   return encoded;
 }
 
+uint8_t encodeFeed(bool feedFWD, bool feedREV, int speedVal){
+  uint8_t result = 0;
+
+  if(feedREV && !feedFWD){
+    result |= 0b10000000;
+  } else if(!feedREV && !feedFWD){
+    return 0;
+  }
+
+  speedVal = constrain(speedVal,0,127);
+  result |= (speedVal & 0b01111111);
+
+  return result;
+}
+
 void encoderReadout() {
-  static uint8_t old_AB = 3;  // Initial lookup table index
   static int8_t encVal = 0;   // Encoder value
   static const int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};  // Lookup table
 
@@ -86,13 +104,14 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(ENC_A), encoderReadout, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENC_B), encoderReadout, CHANGE);
+  
+  old_AB = (digitalRead(ENC_A) << 1) | digitalRead(ENC_B);  // Startwaarde op basis van echte toestand
 }
 
 void loop() {
-  int rawValue = analogRead(feedSpeedPot);
-  int feedSpeed = map(rawValue, 0, 1023, 0, 50);
   bool feedFWD = !digitalRead(feedFWDPin);
   bool feedREV = !digitalRead(feedREVPin);
+  int feedSpeed = analogRead(feedSpeedPot);
 
   // Safely read out encoder position
   noInterrupts();
@@ -101,15 +120,27 @@ void loop() {
   interrupts();
 
   if(rawDelta != 0 || (feedFWD ^ feedREV)){
-    uint8_t encodedDelta = encodeDelta(rawDelta, !digitalRead(times10Pin), !digitalRead(times100Pin), !digitalRead(YaxisEnablePin), !digitalRead(ZaxisEnablePin));
-    lastFeedSpeed = feedSpeed;
+    if(rawDelta != 0 || ((feedFWD ^ feedREV) && (millis() - lastFeedTime >= feedInterval))){ 
+      lastFeedTime = millis();
 
-    Serial1.write(encodedDelta);
-    Serial1.write(feedSpeed);
+      if(speedAmount > 0){
+        feedSpeed = sumFeedSpeed/speedAmount;
+      }
+      sumFeedSpeed = 0;
+      speedAmount = 0;
 
-    Serial.print("Jog delta (raw): ");
-    Serial.print(rawDelta);
-    Serial.print(" | Feed speed: ");
-    Serial.println(feedSpeed);    
+      uint8_t encodedDelta = encodeDelta(rawDelta, !digitalRead(times10Pin), !digitalRead(times100Pin), !digitalRead(YaxisEnablePin), !digitalRead(ZaxisEnablePin));   
+      Serial1.write(encodedDelta);
+      uint8_t feedByte = encodeFeed(feedFWD, feedREV, feedSpeed);
+      Serial1.write(feedByte);
+
+      Serial.print("Jog delta (raw): ");
+      Serial.print(rawDelta);
+      Serial.print(" | Feed speed: ");
+      Serial.println(feedSpeed);
+    } else{
+      speedAmount++;
+      sumFeedSpeed += feedSpeed;
+    } 
   }
 } 

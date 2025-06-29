@@ -1,8 +1,6 @@
 int x = 0;
 int y = 0;
 int z = 0;
-int lastFeedSpeed = -1;
-uint8_t feedSpeed = 0;
 
 void setup() {
   Serial.begin(115200);  // Needs to match transmitter
@@ -18,7 +16,6 @@ void loop() {
       state = 0;
 
       uint8_t encoded = buffer[0];
-      feedSpeed = buffer[1];
 
       // Decoding byte with jog information
       bool neg = encoded & 0b10000000;
@@ -37,16 +34,30 @@ void loop() {
       else if (axis == 0b10) z += delta;
       else x += delta;
 
+      uint8_t feedByte = Serial.read();
+
+      bool FWD, REV;
+      int feedSpeed;
+
+      decodeFeed(feedByte, FWD, REV, feedSpeed);
+
       Serial.print("X: ");
       Serial.print(x);
       Serial.print("  Y: ");
       Serial.print(y);
       Serial.print("  Z: ");
       Serial.print(z);
-      Serial.print(" | Feed: ");
+      Serial.print(" | Direction: ");
+      Serial.print(FWD ? "FWD" : "REV");
+      Serial.print(" | Feedrate: ");
       Serial.println(feedSpeed);
-
-      lastFeedSpeed = feedSpeed;
     }
   }
+}
+
+void decodeFeed(uint8_t feedByte, bool &isFWD, bool &isREV, int &feedrate) {
+  isREV = feedByte & 0b10000000;
+  isFWD = !isREV;
+
+  feedrate = feedByte & 0b01111111;
 }
