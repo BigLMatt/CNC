@@ -55,14 +55,14 @@ uint8_t encodeDelta(int delta, bool times10, bool times100, bool Yaxis, bool Zax
 uint8_t encodeFeed(bool feedFWD, bool feedREV, int speedVal){
   uint8_t result = 0;
 
+  speedVal = map(speedVal,0,1023,0,127);
+  result |= (speedVal & 0b01111111);
+
   if(feedREV && !feedFWD){
     result |= 0b10000000;
-  } else if(!feedREV && !feedFWD){
+  } else if(!(!feedREV && feedFWD)){
     return 0;
   }
-
-  speedVal = constrain(speedVal,0,127);
-  result |= (speedVal & 0b01111111);
 
   return result;
 }
@@ -138,7 +138,7 @@ void loop() {
       Serial.print(rawDelta);
       Serial.print(" | Feed speed: ");
       Serial.println(feedSpeed);
-    } else{
+    } else if(speedAmount < 150){
       speedAmount++;
       sumFeedSpeed += feedSpeed;
     } 
