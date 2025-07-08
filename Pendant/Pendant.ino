@@ -2,7 +2,7 @@
 Project: CNC Pendant, pendant side
 Description: Sends jog inputs from jog wheel and feed rates when feed buttons are pressed using serial communication.
 Author: Matteo https://github.com/BigLMatt
-Date last altered: 06/07/2025
+Date last altered: 08/07/2025
 
 Sender is arduino uno R4 wifi
 Hook up TX of sender to RX of receiver and also connect both GND to eachother
@@ -14,7 +14,7 @@ Encoder readout code based on code found here https://github.com/mo-thunderz/Rot
 */
 
 // Allows printing out of info like raw encoder delta and feedrate
-#define DEBUG
+//#define DEBUG
 
 #define ENC_A 2
 #define ENC_B 3
@@ -37,8 +37,8 @@ bool prevEnableZ = false;
 bool prevPressed = false;
 
 unsigned long lastFeedTime = 0;
-const unsigned long feedInterval = 100;
-const unsigned long setupInterval = 2000;
+const unsigned long feedInterval = 50;
+const unsigned long setupInterval = 5000;
 unsigned long lastSetupTime = 0;
 
 // Encode change in axis or multiplicand jog
@@ -150,14 +150,13 @@ void loop() {
   interrupts();
 
   if(rawDelta != 0){ 
-    
-    uint8_t encodedDelta = encodeDelta(rawDelta);   
-    Serial1.write(encodedDelta);
-    
     #ifdef DEBUG
     Serial.print("Jog delta (raw): ");
     Serial.println(rawDelta);
     #endif
+    
+    uint8_t encodedDelta = encodeDelta(rawDelta);   
+    Serial1.write(encodedDelta);
 
   }
 

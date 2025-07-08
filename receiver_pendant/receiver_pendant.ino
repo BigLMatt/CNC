@@ -2,7 +2,7 @@
 Project: CNC Pendant, rudimentary receiver side
 Description: Receives jog and feed bytes and decodes them and adds the values to axes, only for jog, feedrate shown seperately
 Author: Matteo https://github.com/BigLMatt
-Date last altered: 06/07/2025
+Date last altered: 08/07/2025
 
 Receiver is arduino mega
 Hook up RX of receiver to TX of sender and also connect both GND to eachother
@@ -18,6 +18,8 @@ bool enableZ = false;
 int factor = 1;
 int feedSpeed = 0;
 
+unsigned long lastPrint = 0;
+const unsigned long printInterval = 200;
 
 // Allows printing out of axes and their states
 #define DEBUG
@@ -27,9 +29,6 @@ void setup() {
 }
 
 void loop() {
-  static int state = 0;
-  static uint8_t buffer[1];
-
   static bool FWD = false;
   static bool REV = false;
  
@@ -45,8 +44,11 @@ void loop() {
       decodeAxis(encodedByte, factor, enableY, enableZ);
     }   
 
-    #ifdef DEBUG
-    Serial.print(encodedByte);
+  }
+  #ifdef DEBUG
+  if (millis() - lastPrint > printInterval){
+    lastPrint = millis();
+
     Serial.print("   X: ");
     Serial.print(x);
     Serial.print("  Y: ");
@@ -59,7 +61,7 @@ void loop() {
     else Serial.print("NONE");
     Serial.print(" | Feedrate: ");
     Serial.println(feedSpeed);
-    #endif
+  #endif
   }
 }
 
