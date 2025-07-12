@@ -78,7 +78,7 @@ void decodeFeed(uint8_t feedByte, bool &isFWD, bool &isREV, int &feedSpeed) {
   feedSpeed = feedByte & 0b00111111;
 }
 
-void decodeJog(uint8_t jogByte, bool &enableY, bool &enableZ, int &factor, int &x, int &y, int &z){
+void decodeJog(uint8_t jogByte, bool enableY, bool enableZ, int factor, int &x, int &y, int &z){
   bool sign = jogByte & 0b00100000;
   uint8_t magnitude = jogByte & 0b00011111;
 
