@@ -23,6 +23,8 @@ Encoder readout code based on code found here https://github.com/mo-thunderz/Rot
 #define ENC_B 26
 #define RX 16
 #define TX 17
+#define TX_NOT_RX 19
+#define ACT_LED 18 
 #define POT 34
 #define FEED_FWD 13
 #define FEED_REV 14
@@ -42,6 +44,7 @@ int speedAmount {0};
 unsigned long lastFeedTime {0};
 constexpr unsigned long feedInterval {50};
 constexpr unsigned long setupInterval {5000};
+constexpr int blinkTime {25};
 unsigned long lastSetupTime {0};
 
 // Encode change in axis or multiplicand jog
@@ -120,6 +123,17 @@ void encoderReadout() {
   }  
 }
 
+void activityLedBlink(const bool start){
+  static unsigned long startTime {0};
+  if(start){
+    startTime = millis();
+    digitalWrite(ACT_LED, HIGH);
+  } else{
+    if(millis() - startTime > blinkTime) digitalWrite(ACT_LED, LOW);
+  }
+
+}
+
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200, SERIAL_8N1, RX, TX);
@@ -135,9 +149,13 @@ void setup() {
   pinMode(FEED_FWD, INPUT_PULLUP);
   pinMode(FEED_REV, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(ENC_A), encoderReadout, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ENC_B), encoderReadout, CHANGE);  
+  pinMode(TX_NOT_RX, OUTPUT);
+  pinMode(ACT_LED, OUTPUT);
 
+  attachInterrupt(digitalPinToInterrupt(ENC_A), encoderReadout, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENC_B), encoderReadout, CHANGE);
+    
+  digitalWrite(TX_NOT_RX, HIGH);
 }
 
 void loop() {
@@ -164,6 +182,7 @@ void loop() {
     
     const uint8_t encodedDelta = encodeDelta(rawDelta);   
     Serial1.write(encodedDelta);
+    activityLedBlink(true);
 
   }
   
@@ -174,6 +193,7 @@ void loop() {
     lastSetupTime = millis();
 
     Serial1.write(axis);
+    activityLedBlink(true);
 
     #ifdef DEBUG
     Serial.print("Sent setup byte: ");
@@ -184,6 +204,7 @@ void loop() {
   // Send stop byte for feeding
   if(((states ^ prevStates) & 0b1100'0000) && !(states & 0b1100'0000)){
     Serial1.write(0b1000'0000);
+    activityLedBlink(true);
   }
 
   // Periodically send value of potentiometer feed while button is pressed
@@ -198,6 +219,7 @@ void loop() {
 
     uint8_t feedByte {encodeFeed(states, feedSpeed)};
     Serial1.write(feedByte);
+    activityLedBlink(true);
 
     #ifdef DEBUG
     Serial.print("Feed speed: ");
@@ -208,5 +230,6 @@ void loop() {
     sumFeedSpeed += feedSpeed;
   }
 
+  activityLedBlink(false);
   prevStates = states;
 }
