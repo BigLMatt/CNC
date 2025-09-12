@@ -3,6 +3,7 @@ import serial
 SERIAL_PORT = 'COM3'
 BAUDRATE = 115200
 
+enableX = False
 enableY = False
 enableZ = False
 x = 0
@@ -21,31 +22,47 @@ def decodeFeed(feedByte):
     feedSpeed = feedByte & 0b00111111
     return FWD, REV, feedSpeed
 
-def decodeJog(jogByte, enableY, enableZ, x, y, z):
+def decodeJog(jogByte, enableX, enableY, enableZ, x, y, z):
     sign = (jogByte & 0b00100000) != 0
     magnitude = jogByte & 0b00011111
 
     delta = magnitude * factor
     if sign: delta = -delta
 
-    if enableY: y += delta
+    if enableX: x += delta
+    elif enableY: y += delta
     elif enableZ: z += delta
-    else: x += delta
     
     return x,y,z
     
 def decodeAxis(axisByte):
-    scaleBits = (axisByte & 0b00110000) >> 4
-    axisBits = (axisByte & 0b00001100) >> 2
+    scaleBits = (axisByte & 0b00001100) >> 2
+    axisBits = axisByte & 0b00000011
 
-    if scaleBits == 0b01: factor = 10
-    elif scaleBits == 0b10: factor = 100
-    else: factor = 1
+    enableX = False
+    enableY = False
+    enableZ = False
 
-    enableY = (axisBits == 0b01)
-    enableZ = (axisBits == 0b10)
+    match(scaleBits):
+        case 0b01:
+            factor = 1
+        case 0b10:
+            factor = 10
+        case 0b11:
+            factor = 100
+        case _:
+            factor = 0
+    
+    match(axisBits):
+        case 0b01:
+            enableX = True
+        case 0b10:
+            enableY = True
+        case 0b11:
+            enableZ = True
+    
 
-    return enableY, enableZ, factor
+    return enableX, enableY, enableZ, factor
 
 try:
     ser = serial.Serial(
@@ -62,13 +79,13 @@ except serial.SerialException as e:
     exit(1)
 
 while True:
-    encodedByte = (ser.readline()).strip()
+    encodedByte = ser.read(1)
 
     if((encodedByte & 0b10000000) == 0b10000000):
         FWD,REV,feedSpeed = decodeFeed(encodedByte)
     elif((encodedByte & 0b11000000) == 0b01000000):
-        x,y,z = decodeJog(encodedByte, enableY, enableZ, factor, x, y, z)
+        x,y,z = decodeJog(encodedByte, enableX, enableY, enableZ, factor, x, y, z)
     elif((encodedByte & 0b11000000) == 0b00000000):
-        enableY,enableZ,factor = decodeAxis(encodedByte)
+        enableX,enableY,enableZ,factor = decodeAxis(encodedByte)
 
     print(f'X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')

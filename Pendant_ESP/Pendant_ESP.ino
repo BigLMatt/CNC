@@ -17,7 +17,7 @@ Encoder readout code based on code found here https://github.com/mo-thunderz/Rot
 */
 
 // Allows printing out of info like raw encoder delta and feedrate
-#define DEBUG
+//#define DEBUG
 
 #define ENC_A 25
 #define ENC_B 26
@@ -52,14 +52,14 @@ uint8_t encodeAxis(uint8_t states){
   uint8_t encoded {0};
 
   // Put factor multiplicand bits in postion 3 and 2
-  if (states & 0b0000'0001) encoded |= (0b00 << 2);
-  else if(states & 0b0000'0010) encoded |= (0b01 << 2);
-  else if(states & 0b0000'0100) encoded |= (0b10 << 2);
+  if(states & 0b0000'0001)      encoded |= (0b01 << 2);
+  else if(states & 0b0000'0010) encoded |= (0b10 << 2); 
+  else if(states & 0b0000'0100) encoded |= (0b11 << 2);
   
   // Put axis direction bits at position 1 and 0
-  if(states & 0b0000'1000) encoded |= 0b00;
-  else if(states & 0b0001'0000) encoded |= 0b01;
-  else if(states & 0b0010'0000) encoded |= 0b10;
+  if(states & 0b0000'1000)      encoded |= 0b01;
+  else if(states & 0b0001'0000) encoded |= 0b10;
+  else if(states & 0b0010'0000) encoded |= 0b11;
 
   return encoded;
 }
@@ -177,7 +177,7 @@ void loop() {
   if(rawDelta != 0){ 
     #ifdef DEBUG
     Serial.print("Jog delta (raw): ");
-    Serial.print(rawDelta);
+    Serial.println(rawDelta);
     #endif
     
     const uint8_t encodedDelta = encodeDelta(rawDelta);   
@@ -196,7 +196,9 @@ void loop() {
     activityLedBlink(true);
 
     #ifdef DEBUG
-    Serial.print("Sent setup byte: ");
+    Serial.print("Selector and feed states: ");
+    Serial.print(states);
+    Serial.print("\tSent setup byte: ");
     Serial.println(axis);
     #endif
   } 
