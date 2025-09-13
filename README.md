@@ -69,7 +69,8 @@ The pendant sends 3 types of bytes:
 
 Previously an arduino Uno R4 wifi was used for the pendant microcontroller and an arduino mega as the receiver.
 The TX of the pendant was hooked up straight to the RX of the receiver and GND was also connected between both.
-The code of this prototype version is still available under the name Pendant and Receiver_pendant.
+The code of this prototype version is still available in the Arduino version (old) folder.
+The receiver does not need to be an arduino mega, any device with an RX pin wil suffice.
 
 ## Notes
 
