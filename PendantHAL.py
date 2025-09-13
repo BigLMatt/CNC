@@ -22,7 +22,7 @@ def decodeFeed(feedByte):
     feedSpeed = feedByte & 0b00111111
     return FWD, REV, feedSpeed
 
-def decodeJog(jogByte, enableX, enableY, enableZ, x, y, z):
+def decodeJog(jogByte, enableX, enableY, enableZ, factor, x, y, z):
     sign = (jogByte & 0b00100000) != 0
     magnitude = jogByte & 0b00011111
 
@@ -80,6 +80,7 @@ except serial.SerialException as e:
 
 while True:
     encodedByte = ser.read(1)
+    encodedByte = encodedByte[0]
 
     if((encodedByte & 0b10000000) == 0b10000000):
         FWD,REV,feedSpeed = decodeFeed(encodedByte)
@@ -88,4 +89,4 @@ while True:
     elif((encodedByte & 0b11000000) == 0b00000000):
         enableX,enableY,enableZ,factor = decodeAxis(encodedByte)
 
-    print(f'X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')
+    print(f'Received byte: {encodedByte} X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')
