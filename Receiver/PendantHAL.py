@@ -1,18 +1,5 @@
 import serial
-
-SERIAL_PORT = 'COM3'
-BAUDRATE = 115200
-
-enableX = False
-enableY = False
-enableZ = False
-x = 0
-y = 0
-z = 0
-factor = 1
-feedSpeed = 0
-FWD = False
-REV = False
+from StepperController import StepperController
 
 def decodeFeed(feedByte):
     if((feedByte & 0b01111111) == 0): return False, False, 0
@@ -64,29 +51,52 @@ def decodeAxis(axisByte):
 
     return enableX, enableY, enableZ, factor
 
-try:
-    ser = serial.Serial(
-        port = SERIAL_PORT,
-        baudrate = BAUDRATE,
-        timeout = None,
-        bytesize = serial.EIGHTBITS,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE)
-    print(f'[INFO] Serial port opened at {SERIAL_PORT} at baudrate: {BAUDRATE} baud.')
+if __name__ == "__main__":
+    #SERIAL_PORT = 'COM3' # for windows
+    SERIAL_PORT = '/dev/ttyUSB0'  # for linux/rapi
+    BAUDRATE = 115200
 
-except serial.SerialException as e:
-    print(f'[ERROR] Failed to open serial port at {SERIAL_PORT}: {e}')
-    exit(1)
+    enableX = False
+    enableY = False
+    enableZ = False
+    x = 0
+    y = 0
+    z = 0
+    factor = 1
+    feedSpeed = 0
+    FWD = False
+    REV = False
 
-while True:
-    encodedByte = ser.read(1)
-    encodedByte = encodedByte[0]
+    try:
+        ser = serial.Serial(
+            port = SERIAL_PORT,
+            baudrate = BAUDRATE,
+            timeout = None,
+            bytesize = serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE)
+        print(f'[INFO] Serial port opened at {SERIAL_PORT} at baudrate: {BAUDRATE} baud.')
 
-    if((encodedByte & 0b10000000) == 0b10000000):
-        FWD,REV,feedSpeed = decodeFeed(encodedByte)
-    elif((encodedByte & 0b11000000) == 0b01000000):
-        x,y,z = decodeJog(encodedByte, enableX, enableY, enableZ, factor, x, y, z)
-    elif((encodedByte & 0b11000000) == 0b00000000):
-        enableX,enableY,enableZ,factor = decodeAxis(encodedByte)
+    except serial.SerialException as e:
+        print(f'[ERROR] Failed to open serial port at {SERIAL_PORT}: {e}')
+        exit(1)
+    
+    pitch_um = 5000
+    speed_rps = 3
+    pulses_per_rev = 1600
 
-    print(f'Received byte: {encodedByte} X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')
+    stepperController = StepperController(pitch_um, pulses_per_rev, speed_rps)
+
+    while True:
+        encodedByte = ser.read(1)
+        encodedByte = encodedByte[0]
+
+        if((encodedByte & 0b10000000) == 0b10000000):
+            FWD,REV,feedSpeed = decodeFeed(encodedByte)
+        elif((encodedByte & 0b11000000) == 0b01000000):
+            x,y,z = decodeJog(encodedByte, enableX, enableY, enableZ, factor, x, y, z)
+        elif((encodedByte & 0b11000000) == 0b00000000):
+            enableX,enableY,enableZ,factor = decodeAxis(encodedByte)
+        
+        print(f'Received byte: {encodedByte} X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')
+        stepperController.move(x)
