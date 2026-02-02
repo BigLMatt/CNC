@@ -67,6 +67,8 @@ if __name__ == "__main__":
     FWD = False
     REV = False
 
+    speed_was_on = False
+
     try:
         ser = serial.Serial(
             port = SERIAL_PORT,
@@ -99,4 +101,13 @@ if __name__ == "__main__":
             enableX,enableY,enableZ,factor = decodeAxis(encodedByte)
         
         print(f'Received byte: {encodedByte} X: {x}, Y: {y} Z: {z}, FWD: {FWD}, REV: {REV}, Feed: {feedSpeed}')
-        stepperController.move(x)
+
+
+        if(FWD or REV):
+            stepperController.move_speed_start(feedSpeed/16, FWD)
+            speed_was_on = True
+        elif speed_was_on:
+            x = stepperController.move_speed_stop()
+            speed_was_on = False
+        else:
+            stepperController.move(x)
